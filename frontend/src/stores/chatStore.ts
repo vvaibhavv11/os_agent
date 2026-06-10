@@ -85,6 +85,55 @@ interface ChatState {
   flushHead: () => void;
 }
 
+export function storedMessagesToItems(msgs: any[]): StreamItem[] {
+  const items: StreamItem[] = [];
+  const toolResults = new Map<string, string>();
+
+  for (const m of msgs) {
+    const ts = Date.now();
+
+    if (m.role === "user") {
+      items.push({ kind: "user_message", id: genId(), text: m.content || "", timestamp: ts });
+      continue;
+    }
+
+    if (m.role === "tool") {
+      if (m.tool_call_id) {
+        toolResults.set(m.tool_call_id, m.tool_result || "");
+      }
+      continue;
+    }
+
+    // assistant messages
+    if (m.reasoning) {
+      items.push({ kind: "thought", id: genId(), text: m.reasoning, timestamp: ts, status: "ready" });
+    }
+
+    items.push({ kind: "assistant_message", id: genId(), text: m.content || "", timestamp: ts });
+
+    if (m.tool_calls) {
+      try {
+        const calls = JSON.parse(m.tool_calls);
+        for (const tc of calls) {
+          const argsStr = typeof tc.input === "string" ? tc.input : JSON.stringify(tc.input || {});
+          items.push({
+            kind: "tool_call",
+            id: genId(),
+            toolCallId: tc.toolCallId,
+            name: tc.toolName,
+            args: argsStr,
+            status: "completed",
+            result: toolResults.get(tc.toolCallId) || undefined,
+            timestamp: ts,
+          });
+        }
+      } catch {}
+    }
+  }
+
+  return items;
+}
+
 export const useChatStore = create<ChatState>((set) => ({
   conversations: [],
   activeId: "",

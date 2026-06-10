@@ -1,5 +1,5 @@
 import { useCallback } from "react";
-import { useChatStore, genId, type StreamItem, type UserMessageItem, type AssistantMessageItem, type SystemMessageItem } from "./stores/chatStore";
+import { useChatStore, genId, storedMessagesToItems } from "./stores/chatStore";
 import { useChatEvents } from "./hooks/useChat";
 import Sidebar from "./components/Sidebar";
 import ChatArea from "./components/ChatArea";
@@ -31,21 +31,9 @@ function App() {
     (id: string) => {
       setActiveId(id);
       GetConversation(id).then((raw: string) => {
+        if (useChatStore.getState().activeId !== id) return;
         const msgs = JSON.parse(raw);
-        const streamItems: StreamItem[] = msgs.map((m: any) => {
-          const base = {
-            id: genId(),
-            timestamp: Date.now(),
-          };
-          if (m.role === "user") {
-            return { ...base, kind: "user_message" as const, text: m.content || "" } as UserMessageItem;
-          }
-          if (m.role === "system") {
-            return { ...base, kind: "system_message" as const, text: m.content || "" } as SystemMessageItem;
-          }
-          return { ...base, kind: "assistant_message" as const, text: m.content || "" } as AssistantMessageItem;
-        });
-        setItems(streamItems);
+        setItems(storedMessagesToItems(msgs));
       });
     },
     [setActiveId, setItems]

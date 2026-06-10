@@ -4,7 +4,7 @@ import {
   GetConversations,
   GetConversation,
 } from "../../wailsjs/go/main/App";
-import { useChatStore, genId } from "../stores/chatStore";
+import { useChatStore, genId, storedMessagesToItems } from "../stores/chatStore";
 
 export function useChatEvents() {
   const store = useChatStore;
@@ -57,13 +57,7 @@ export function useChatEvents() {
 
     on("conversation_loaded", (data: any) => {
       if (data.id !== store.getState().activeId) return;
-      const streamItems = (data.messages || []).map((m: any) => ({
-        kind: m.role === "user" ? "user_message" as const : "assistant_message" as const,
-        id: genId(),
-        text: m.content || "",
-        timestamp: Date.now(),
-      }));
-      store.getState().setItems(streamItems);
+      store.getState().setItems(storedMessagesToItems(data.messages || []));
     });
 
     on("reasoning_start", () => {
