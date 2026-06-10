@@ -106,7 +106,7 @@ func (s *Storage) ListConversations() ([]Conversation, error) {
 	}
 	defer rows.Close()
 
-	var convs []Conversation
+	convs := make([]Conversation, 0)
 	for rows.Next() {
 		var c Conversation
 		if err := rows.Scan(&c.ID, &c.Title, &c.CreatedAt, &c.UpdatedAt, &c.LastPreview, &c.Model); err != nil {

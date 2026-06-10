@@ -1,5 +1,5 @@
 import { useCallback } from "react";
-import { useChatStore } from "./stores/chatStore";
+import { useChatStore, genId, type StreamItem, type UserMessageItem, type AssistantMessageItem, type SystemMessageItem } from "./stores/chatStore";
 import { useChatEvents } from "./hooks/useChat";
 import Sidebar from "./components/Sidebar";
 import ChatArea from "./components/ChatArea";
@@ -18,12 +18,12 @@ function App() {
   const {
     conversations,
     activeId,
-    messages,
+    items,
     streaming,
     waiting,
     connected,
     setActiveId,
-    setMessages,
+    setItems,
     setConversations,
   } = useChatStore();
 
@@ -32,16 +32,23 @@ function App() {
       setActiveId(id);
       GetConversation(id).then((raw: string) => {
         const msgs = JSON.parse(raw);
-        setMessages(
-          msgs.map((m: any) => ({
-            speaker: m.role === "user" ? "user" : "ai",
-            messageText: m.content || "",
-            reasoningText: m.reasoning || "",
-          }))
-        );
+        const streamItems: StreamItem[] = msgs.map((m: any) => {
+          const base = {
+            id: genId(),
+            timestamp: Date.now(),
+          };
+          if (m.role === "user") {
+            return { ...base, kind: "user_message" as const, text: m.content || "" } as UserMessageItem;
+          }
+          if (m.role === "system") {
+            return { ...base, kind: "system_message" as const, text: m.content || "" } as SystemMessageItem;
+          }
+          return { ...base, kind: "assistant_message" as const, text: m.content || "" } as AssistantMessageItem;
+        });
+        setItems(streamItems);
       });
     },
-    [setActiveId, setMessages]
+    [setActiveId, setItems]
   );
 
   const handleNew = useCallback(() => {
@@ -49,31 +56,32 @@ function App() {
       if (!raw) return;
       const conv = JSON.parse(raw);
       setActiveId(conv.id);
-      setMessages([]);
+      setItems([]);
       GetConversations().then((raw2: string) => {
         setConversations(JSON.parse(raw2));
       });
     });
-  }, [setActiveId, setMessages, setConversations]);
+  }, [setActiveId, setItems, setConversations]);
 
   const handleDelete = useCallback(
     (id: string) => {
       DeleteConversation(id);
       if (id === activeId) {
         setActiveId("");
-        setMessages([]);
+        setItems([]);
       }
     },
-    [activeId, setActiveId, setMessages]
+    [activeId, setActiveId, setItems]
   );
 
   const handleSend = useCallback(
     (text: string) => {
       if (!activeId) return;
-      // Optimistically append user message
-      useChatStore.getState().appendMessage({
-        speaker: "user",
-        messageText: text,
+      useChatStore.getState().appendItem({
+        kind: "user_message",
+        id: genId(),
+        text,
+        timestamp: Date.now(),
       });
       useChatStore.getState().setWaiting(true);
       SendMessage(text, activeId);
@@ -88,7 +96,7 @@ function App() {
   return (
     <div className="flex h-screen w-screen bg-chat-bg">
       <Sidebar
-        conversations={conversations}
+        conversations={conversations || []}
         activeId={activeId}
         onSelect={handleSelect}
         onNew={handleNew}
@@ -96,8 +104,8 @@ function App() {
       />
       <ChatArea
         activeId={activeId}
-        conversations={conversations}
-        messages={messages}
+        conversations={conversations || []}
+        items={items || []}
         streaming={streaming}
         waiting={waiting}
         connected={connected}

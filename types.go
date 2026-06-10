@@ -20,7 +20,8 @@ type StoredMessage struct {
 }
 
 type ClientMessage struct {
-	Role      string `json:"role"`
-	Content   string `json:"content"`
-	Reasoning string `json:"reasoning,omitempty"`
+	Role      string  `json:"role"`
+	Content   string  `json:"content"`
+	Reasoning string  `json:"reasoning,omitempty"`
+	ToolCalls *string `json:"tool_calls,omitempty"`
 }

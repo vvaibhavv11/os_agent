@@ -7,7 +7,7 @@
 }
 
 html {
-  background-color: #0f172a;
+  background-color: #1d2021;
 }
 
 body {
@@ -33,10 +33,10 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #334155;
+  background: #504945;
   border-radius: 2px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #475569;
+  background: #665c54;
 }

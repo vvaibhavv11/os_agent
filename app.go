@@ -103,6 +103,7 @@ func (a *App) GetConversation(id string) string {
 			Role:      m.Role,
 			Content:   content,
 			Reasoning: reasoning,
+			ToolCalls: m.ToolCalls,
 		})
 	}
 	data, _ := json.Marshal(clientMsgs)

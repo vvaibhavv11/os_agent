@@ -6,16 +6,16 @@ module.exports = {
     extend: {
       colors: {
         chat: {
-          bg: "#0f172a",
-          sidebar: "#0b1120",
-          surface: "#1e293b",
-          border: "#334155",
-          accent: "#818cf8",
-          "accent-hover": "#a5b4fc",
-          text: "#f1f5f9",
-          "text-muted": "#64748b",
-          "user-bubble": "#6366f1",
-          "ai-bubble": "#1e293b",
+          bg: "#1d2021",
+          sidebar: "#1d2021",
+          surface: "#3c3836",
+          border: "#504945",
+          accent: "#83a598",
+          "accent-hover": "#8ec07c",
+          text: "#ebdbb2",
+          "text-muted": "#928374",
+          "user-bubble": "#83a598",
+          "ai-bubble": "#3c3836",
         },
       },
       animation: {

@@ -12,6 +12,9 @@ export default function InputBar({ onSend, onStop, disabled, streaming, waiting 
   const [text, setText] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
+  const isStreaming = streaming || waiting;
+  const isDisabled = disabled || isStreaming;
+
   useEffect(() => {
     if (!disabled && !streaming && !waiting) textareaRef.current?.focus();
   }, [disabled, streaming, waiting]);
@@ -39,21 +42,32 @@ export default function InputBar({ onSend, onStop, disabled, streaming, waiting 
     }
   }, [text]);
 
-  const isStreaming = streaming || waiting;
+  const placeholderText = isDisabled
+    ? waiting && !streaming
+      ? "Thinking..."
+      : "Generating..."
+    : "Ask anything... (Enter to send, Shift+Enter newline)";
 
   return (
     <div className="px-4 pb-4 pt-2 bg-gradient-to-t from-chat-bg via-chat-bg to-transparent">
       <div className="flex items-end gap-2 bg-chat-surface/80 backdrop-blur-sm border border-chat-border/50 rounded-2xl px-4 py-3 shadow-lg shadow-black/20 transition-all duration-200 focus-within:border-chat-accent/50 focus-within:shadow-indigo-500/10">
-        <textarea
-          ref={textareaRef}
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder={isStreaming ? "Waiting for response..." : "Type a message..."}
-          rows={1}
-          disabled={disabled}
-          className="flex-1 resize-none bg-transparent text-sm text-chat-text placeholder-chat-text-muted/60 outline-none disabled:opacity-40 leading-relaxed max-h-[200px]"
-        />
+        <div className="flex-1 flex flex-col">
+          <textarea
+            ref={textareaRef}
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder={placeholderText}
+            rows={1}
+            disabled={isDisabled}
+            className="w-full resize-none bg-transparent text-sm text-chat-text placeholder-chat-text-muted/60 outline-none disabled:opacity-40 leading-relaxed max-h-[200px]"
+          />
+          {!isDisabled && (
+            <span className="text-[10px] text-chat-text-muted/40 mt-0.5">
+              Enter to send · Shift+Enter newline
+            </span>
+          )}
+        </div>
         <div className="flex items-center gap-1.5 shrink-0">
           <button
             onClick={isStreaming ? onStop : handleSend}

@@ -1,6 +1,8 @@
 import { useEffect, useRef } from "react";
-import type { Conversation, Message } from "../stores/chatStore";
+import type { Conversation, StreamItem } from "../stores/chatStore";
 import MessageBubble from "./MessageBubble";
+import ThinkingBlock from "./ThinkingBlock";
+import ToolCall from "./ToolCall";
 import TypingIndicator from "./TypingIndicator";
 import InputBar from "./InputBar";
 import { formatTitle } from "../lib/utils";
@@ -8,7 +10,7 @@ import { formatTitle } from "../lib/utils";
 interface ChatAreaProps {
   activeId: string;
   conversations: Conversation[];
-  messages: Message[];
+  items: StreamItem[];
   streaming: boolean;
   waiting: boolean;
   connected: boolean;
@@ -19,7 +21,7 @@ interface ChatAreaProps {
 export default function ChatArea({
   activeId,
   conversations,
-  messages,
+  items,
   streaming,
   waiting,
   connected,
@@ -31,7 +33,7 @@ export default function ChatArea({
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  }, [items]);
 
   return (
     <div className="flex flex-col flex-1 min-w-0 bg-chat-bg">
@@ -75,8 +77,9 @@ export default function ChatArea({
       </div>
 
       {/* messages */}
-      <div className="flex-1 overflow-y-auto">
-        {messages.length === 0 && !streaming && !waiting ? (
+      <div className="flex-1 overflow-y-auto flex flex-col items-center">
+        <div className="w-full max-w-3xl">
+        {items.length === 0 && !streaming && !waiting ? (
           <div className="flex items-center justify-center h-full">
             <div className="text-center max-w-sm">
               <div className="w-20 h-20 mx-auto mb-6 rounded-2xl bg-gradient-to-br from-indigo-500/20 to-purple-500/20 flex items-center justify-center border border-indigo-500/10">
@@ -126,23 +129,61 @@ export default function ChatArea({
           </div>
         ) : (
           <div className="py-4">
-            {messages.map((msg, i) => (
-              <MessageBubble key={i} message={msg} />
-            ))}
-            {streaming && <TypingIndicator />}
+            {items.map((item, i) => {
+              switch (item.kind) {
+                case "user_message":
+                case "assistant_message":
+                  return <MessageBubble key={item.id} message={item} />;
+                case "thought":
+                  return <ThinkingBlock key={item.id} text={item.text} status={item.status} />;
+                case "tool_call":
+                  return (
+                    <ToolCall
+                      key={item.id}
+                      toolCallId={item.toolCallId}
+                      name={item.name}
+                      args={item.args}
+                      status={item.status}
+                      result={item.result}
+                      isFirstInSequence={
+                        i === 0 || items[i - 1].kind !== "tool_call"
+                      }
+                      isLastInSequence={
+                        i === items.length - 1 || items[i + 1].kind !== "tool_call"
+                      }
+                    />
+                  );
+                case "system_message":
+                  return (
+                    <div key={item.id} className="flex justify-center px-5 py-2 animate-fade-in">
+                      <div className="bg-red-900/30 text-red-300 text-xs px-3.5 py-2 rounded-xl border border-red-800/30">
+                        {item.text}
+                      </div>
+                    </div>
+                  );
+                default:
+                  return null;
+              }
+            })}
+            {waiting && !streaming && <TypingIndicator />}
           </div>
         )}
         <div ref={bottomRef} />
+        </div>
       </div>
 
       {/* input */}
-      {activeId ? (
-        <InputBar onSend={onSend} onStop={onStop} disabled={!connected} streaming={streaming} waiting={waiting} />
-      ) : (
-        <div className="p-5 text-center text-xs text-chat-text-muted border-t border-chat-border/50">
-          Create or select a conversation to start chatting
+      <div className="flex justify-center">
+        <div className="w-full max-w-3xl">
+        {activeId ? (
+          <InputBar onSend={onSend} onStop={onStop} disabled={!connected} streaming={streaming} waiting={waiting} />
+        ) : (
+          <div className="p-5 text-center text-xs text-chat-text-muted border-t border-chat-border/50">
+            Create or select a conversation to start chatting
+          </div>
+        )}
         </div>
-      )}
+      </div>
     </div>
   );
 }

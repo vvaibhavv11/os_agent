@@ -44,7 +44,7 @@ export default function Sidebar({
         </button>
         {expanded && (
           <div className="ml-3 flex items-center gap-2">
-            <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center">
+            <div className="w-6 h-6 rounded-lg bg-[#83a598] flex items-center justify-center">
               <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
               </svg>
@@ -59,7 +59,7 @@ export default function Sidebar({
         <div className="p-2 pt-3">
           <button
             onClick={onNew}
-            className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl bg-gradient-to-r from-indigo-500/20 to-purple-500/20 hover:from-indigo-500/30 hover:to-purple-500/30 text-chat-accent text-sm font-medium transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] border border-chat-accent/20"
+            className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl bg-[#83a598]/20 hover:bg-[#83a598]/30 text-chat-accent text-sm font-medium transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] border border-chat-accent/20"
           >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
@@ -79,17 +79,17 @@ export default function Sidebar({
               onClick={() => onSelect(conv.id)}
               className={`group relative flex items-center rounded-xl cursor-pointer transition-all duration-200 ${
                 isActive
-                  ? "bg-gradient-to-r from-indigo-500/15 to-purple-500/10 text-chat-text shadow-sm"
+                  ? "bg-[#83a598]/15 text-chat-text shadow-sm"
                   : "text-chat-text-muted hover:bg-chat-surface/60 hover:text-chat-text"
               } ${expanded ? "px-3 py-2.5" : "justify-center p-2.5"}`}
             >
               {/* active indicator bar */}
               {isActive && expanded && (
-                <div className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 rounded-full bg-gradient-to-b from-indigo-400 to-purple-500" />
+                <div className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 rounded-full bg-[#83a598]" />
               )}
               <div className={`flex items-center gap-2.5 min-w-0 ${expanded ? "w-full" : ""}`}>
                 <svg
-                  className={`w-4 h-4 shrink-0 ${isActive ? "text-indigo-400" : ""}`}
+                  className={`w-4 h-4 shrink-0 ${isActive ? "text-[#83a598]" : ""}`}
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke="currentColor"

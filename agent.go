@@ -156,30 +156,35 @@ func (a *App) runAgent(ctx context.Context, conversationID string, msgs []provid
 			assistantContent.WriteString(chunk.Text)
 			stepText.WriteString(chunk.Text)
 			a.emitEvent("text_delta", map[string]any{"content": chunk.Text})
-		case provider.ChunkReasoning:
-			assistantReasoning.WriteString(chunk.Text)
-			stepReasoning.WriteString(chunk.Text)
-			a.emitEvent("reasoning_delta", map[string]any{"content": chunk.Text})
+	case provider.ChunkReasoning:
+		if stepReasoning.Len() == 0 {
+			a.emitEvent("reasoning_start", nil)
+		}
+		assistantReasoning.WriteString(chunk.Text)
+		stepReasoning.WriteString(chunk.Text)
+		a.emitEvent("reasoning_delta", map[string]any{"content": chunk.Text})
 		case provider.ChunkToolCall:
 			toolCalls = append(toolCalls, toolCallInfo{
 				ToolCallID: chunk.ToolCallID,
 				ToolName:   chunk.ToolName,
 				Input:      json.RawMessage(chunk.ToolInput),
 			})
-			a.emitEvent("tool_call", map[string]any{
-				"name": chunk.ToolName,
-				"args": chunk.ToolInput,
-			})
+		a.emitEvent("tool_call", map[string]any{
+			"toolCallId": chunk.ToolCallID,
+			"name":       chunk.ToolName,
+			"args":       chunk.ToolInput,
+		})
 		case provider.ChunkToolResult:
 			toolResults = append(toolResults, toolResultInfo{
 				toolCallID: chunk.ToolCallID,
 				toolName:   chunk.ToolName,
 				output:     chunk.ToolInput,
 			})
-			a.emitEvent("tool_result", map[string]any{
-				"name":   chunk.ToolName,
-				"result": chunk.ToolInput,
-			})
+		a.emitEvent("tool_result", map[string]any{
+			"toolCallId": chunk.ToolCallID,
+			"name":       chunk.ToolName,
+			"result":     chunk.ToolInput,
+		})
 		case provider.ChunkStepFinish:
 			stepCount++
 			log.Printf("[chat] step %d tools:%d text:%d", stepCount, len(toolCalls), stepText.Len())
@@ -188,6 +193,7 @@ func (a *App) runAgent(ctx context.Context, conversationID string, msgs []provid
 			stepReasoning.Reset()
 			toolCalls = nil
 			toolResults = nil
+			a.emitEvent("step_finish", nil)
 		case provider.ChunkFinish:
 			stepCount++
 			persistStep(conversationID, stepText.String(), stepReasoning.String(), toolCalls, toolResults)

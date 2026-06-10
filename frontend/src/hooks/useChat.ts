@@ -4,42 +4,31 @@ import {
   GetConversations,
   GetConversation,
 } from "../../wailsjs/go/main/App";
-import { useChatStore, type Message } from "../stores/chatStore";
+import { useChatStore, genId } from "../stores/chatStore";
 
 export function useChatEvents() {
-  const {
-    setConversations,
-    setActiveId,
-    setMessages,
-    appendMessage,
-    updateLastMessage,
-    setStreaming,
-    setWaiting,
-    setConnected,
-  } = useChatStore();
+  const store = useChatStore;
 
   const textBuf = useRef("");
   const reasoningBuf = useRef("");
-  const ignoreStale = useRef(false);
+  const thoughtItemId = useRef<string | null>(null);
 
   useEffect(() => {
-    // Load initial data via Go bindings (avoids race with startup event)
-    ignoreStale.current = false;
-    setConnected(true);
+    store.getState().setConnected(true);
     GetConversations().then((raw: string) => {
-      const convs = JSON.parse(raw);
-      setConversations(convs);
+      const convs = JSON.parse(raw) || [];
+      store.getState().setConversations(convs);
       if (convs.length > 0) {
-        setActiveId(convs[0].id);
+        store.getState().setActiveId(convs[0].id);
         GetConversation(convs[0].id).then((raw2: string) => {
           const msgs = JSON.parse(raw2);
-          setMessages(
-            msgs.map((m: any) => ({
-              speaker: m.role === "user" ? "user" : "ai",
-              messageText: m.content || "",
-              reasoningText: m.reasoning || "",
-            }))
-          );
+          const streamItems = msgs.map((m: any) => ({
+            kind: m.role === "user" ? "user_message" as const : "assistant_message" as const,
+            id: genId(),
+            text: m.content || "",
+            timestamp: Date.now(),
+          }));
+          store.getState().setItems(streamItems);
         });
       }
     });
@@ -52,95 +41,126 @@ export function useChatEvents() {
     };
 
     on("conversations_update", (data: any) => {
-      setConversations(data.conversations || []);
-      if (data.active_id) setActiveId(data.active_id);
+      store.getState().setConversations(data.conversations || []);
+      if (data.active_id) store.getState().setActiveId(data.active_id);
     });
 
     on("conversation_renamed", (data: any) => {
-      const state = useChatStore.getState();
+      const state = store.getState();
       const updated = state.conversations.map((c: any) =>
         c.id === data.id ? { ...c, title: data.title } : c
       );
-      setConversations(updated);
+      store.getState().setConversations(updated);
     });
 
-    on("conversation_deleted", (_data: any) => {
-      // handled by conversations_update
-    });
+    on("conversation_deleted", () => {});
 
     on("conversation_loaded", (data: any) => {
-      if (data.id !== useChatStore.getState().activeId) return;
-      const msgs: Message[] = (data.messages || []).map((m: any) => ({
-        speaker: m.role === "user" ? "user" : "ai",
-        messageText: m.content || "",
-        reasoningText: m.reasoning || "",
+      if (data.id !== store.getState().activeId) return;
+      const streamItems = (data.messages || []).map((m: any) => ({
+        kind: m.role === "user" ? "user_message" as const : "assistant_message" as const,
+        id: genId(),
+        text: m.content || "",
+        timestamp: Date.now(),
       }));
-      setMessages(msgs);
+      store.getState().setItems(streamItems);
     });
 
-    on("text_delta", (data: any) => {
-      if (ignoreStale.current) return;
-      setWaiting(false);
-      const { streaming } = useChatStore.getState();
-      if (!streaming) {
-        setStreaming(true);
-        textBuf.current = "";
-        reasoningBuf.current = "";
-        appendMessage({ speaker: "ai", messageText: "", reasoningText: "" });
-      }
-      textBuf.current += data.content;
-      updateLastMessage(textBuf.current, reasoningBuf.current);
+    on("reasoning_start", () => {
+      const id = genId();
+      thoughtItemId.current = id;
+      store.getState().appendItem({
+        kind: "thought",
+        id,
+        text: "",
+        timestamp: Date.now(),
+        status: "loading",
+      });
     });
 
     on("reasoning_delta", (data: any) => {
-      if (ignoreStale.current) return;
-      setWaiting(false);
-      const { streaming } = useChatStore.getState();
-      if (!streaming) {
-        setStreaming(true);
-        textBuf.current = "";
-        reasoningBuf.current = "";
-        appendMessage({ speaker: "ai", messageText: "", reasoningText: "" });
+      store.getState().setWaiting(false);
+      if (!thoughtItemId.current) {
+        const id = genId();
+        thoughtItemId.current = id;
+        store.getState().appendItem({
+          kind: "thought",
+          id,
+          text: "",
+          timestamp: Date.now(),
+          status: "loading",
+        });
       }
       reasoningBuf.current += data.content;
-      updateLastMessage(textBuf.current, reasoningBuf.current);
+      store.getState().updateItemById(thoughtItemId.current, {
+        text: reasoningBuf.current,
+      } as any);
+    });
+
+    const ensureAssistantTurn = () => {
+      const state = store.getState();
+      if (state.streaming) return;
+      store.getState().setStreaming(true);
+      textBuf.current = "";
+      reasoningBuf.current = "";
+      if (thoughtItemId.current) {
+        store.getState().updateItemById(thoughtItemId.current, { status: "ready" } as any);
+        thoughtItemId.current = null;
+      }
+      store.getState().appendItem({
+        kind: "assistant_message",
+        id: genId(),
+        text: "",
+        timestamp: Date.now(),
+      });
+    };
+
+    on("text_delta", (data: any) => {
+      store.getState().setWaiting(false);
+      ensureAssistantTurn();
+      textBuf.current += data.content;
+      const items = store.getState().items;
+      for (let i = items.length - 1; i >= 0; i--) {
+        if (items[i].kind === "assistant_message") {
+          store.getState().updateItemById(items[i].id, { text: textBuf.current } as any);
+          break;
+        }
+      }
     });
 
     on("tool_call", (data: any) => {
-      if (ignoreStale.current) return;
-      setWaiting(false);
-      const { streaming } = useChatStore.getState();
-      if (!streaming) {
-        setStreaming(true);
-        textBuf.current = "";
-        reasoningBuf.current = "";
-        appendMessage({ speaker: "ai", messageText: "", reasoningText: "" });
+      store.getState().setWaiting(false);
+      ensureAssistantTurn();
+      store.getState().addToolCall(data.toolCallId, data.name, data.args);
+    });
+
+    on("tool_result", (data: any) => {
+      store.getState().updateToolResult(data.toolCallId, data.result);
+    });
+
+    on("step_finish", () => {
+      store.getState().setStreaming(false);
+    });
+
+    on("finish", () => {
+      store.getState().setStreaming(false);
+      store.getState().setWaiting(false);
+      if (thoughtItemId.current) {
+        store.getState().updateItemById(thoughtItemId.current, { status: "ready" } as any);
+        thoughtItemId.current = null;
       }
-      textBuf.current += `\n\n*Using ${data.name}()...*`;
-      updateLastMessage(textBuf.current, reasoningBuf.current);
-    });
-
-    on("tool_result", (_data: any) => {
-      if (ignoreStale.current) return;
-      textBuf.current += `\n\n*Done.*`;
-      updateLastMessage(textBuf.current, reasoningBuf.current);
-    });
-
-    on("finish", (_data: any) => {
-      if (ignoreStale.current) return;
-      setWaiting(false);
-      setStreaming(false);
       textBuf.current = "";
       reasoningBuf.current = "";
     });
 
     on("error", (data: any) => {
-      if (ignoreStale.current) return;
-      setWaiting(false);
-      setStreaming(false);
-      appendMessage({
-        speaker: "system",
-        messageText: "Error: " + (data.message || "Unknown error"),
+      store.getState().setStreaming(false);
+      store.getState().setWaiting(false);
+      store.getState().appendItem({
+        kind: "system_message",
+        id: genId(),
+        text: "Error: " + (data.message || "Unknown error"),
+        timestamp: Date.now(),
       });
     });
 
@@ -149,5 +169,5 @@ export function useChatEvents() {
     };
   }, []);
 
-  return { ignoreStale };
+  return {};
 }
