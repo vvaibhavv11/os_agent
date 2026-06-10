@@ -1,4 +1,4 @@
-build/bin
+build/
 node_modules
 frontend/dist
 /ai_desktop_app
