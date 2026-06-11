@@ -89,7 +89,7 @@ func (a *App) GetConversation(id string) string {
 		runtime.LogErrorf(a.ctx, "GetMessages: %v", err)
 		return "[]"
 	}
-	var clientMsgs []ClientMessage
+	clientMsgs := []ClientMessage{}
 	for _, m := range msgs {
 		content := ""
 		if m.Content != nil {

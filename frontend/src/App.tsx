@@ -29,14 +29,19 @@ function App() {
 
   const handleSelect = useCallback(
     (id: string) => {
+      if (id === activeId) return;
+      StopGeneration();
+      useChatStore.getState().setStreaming(false);
+      useChatStore.getState().setWaiting(false);
       setActiveId(id);
+      setItems([]);
       GetConversation(id).then((raw: string) => {
         if (useChatStore.getState().activeId !== id) return;
-        const msgs = JSON.parse(raw);
+        const msgs = JSON.parse(raw) || [];
         setItems(storedMessagesToItems(msgs));
       });
     },
-    [setActiveId, setItems]
+    [activeId, setActiveId, setItems]
   );
 
   const handleNew = useCallback(() => {

@@ -21,14 +21,8 @@ export function useChatEvents() {
       if (convs.length > 0) {
         store.getState().setActiveId(convs[0].id);
         GetConversation(convs[0].id).then((raw2: string) => {
-          const msgs = JSON.parse(raw2);
-          const streamItems = msgs.map((m: any) => ({
-            kind: m.role === "user" ? "user_message" as const : "assistant_message" as const,
-            id: genId(),
-            text: m.content || "",
-            timestamp: Date.now(),
-          }));
-          store.getState().setItems(streamItems);
+          const msgs = JSON.parse(raw2) || [];
+          store.getState().setItems(storedMessagesToItems(msgs));
         });
       }
     });

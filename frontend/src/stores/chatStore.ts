@@ -89,7 +89,7 @@ export function storedMessagesToItems(msgs: any[]): StreamItem[] {
   const items: StreamItem[] = [];
   const toolResults = new Map<string, string>();
 
-  for (const m of msgs) {
+  for (const m of msgs || []) {
     const ts = Date.now();
 
     if (m.role === "user") {
