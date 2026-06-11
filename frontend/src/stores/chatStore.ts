@@ -113,7 +113,7 @@ export function storedMessagesToItems(msgs: any[]): StreamItem[] {
 
     if (m.tool_calls) {
       try {
-        const calls = JSON.parse(m.tool_calls);
+        const calls = typeof m.tool_calls === "string" ? JSON.parse(m.tool_calls) : m.tool_calls;
         for (const tc of calls) {
           const argsStr = typeof tc.input === "string" ? tc.input : JSON.stringify(tc.input || {});
           items.push({

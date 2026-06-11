@@ -51,6 +51,7 @@ export function useChatEvents() {
 
     on("conversation_loaded", (data: any) => {
       if (data.id !== store.getState().activeId) return;
+      if (store.getState().items.length > 0) return;
       store.getState().setItems(storedMessagesToItems(data.messages || []));
     });
 
