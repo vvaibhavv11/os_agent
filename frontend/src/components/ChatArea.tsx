@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import type { Conversation, StreamItem } from "../stores/chatStore";
 import MessageBubble from "./MessageBubble";
 import ThinkingBlock from "./ThinkingBlock";
@@ -29,11 +29,67 @@ export default function ChatArea({
   onStop,
 }: ChatAreaProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const scrollPositionsRef = useRef<Map<string, number>>(new Map());
+  const prevActiveIdRef = useRef<string>(activeId);
+  const isRestoringRef = useRef(false);
   const activeConv = conversations.find((c) => c.id === activeId);
 
+  // Helper: check if user is scrolled near bottom
+  const isNearBottom = useCallback(() => {
+    const el = scrollContainerRef.current;
+    if (!el) return true;
+    const threshold = 150;
+    return el.scrollHeight - el.scrollTop - el.clientHeight < threshold;
+  }, []);
+
+  // Save scroll position when switching away, restore when switching to
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [items]);
+    const prevId = prevActiveIdRef.current;
+    if (prevId && prevId !== activeId) {
+      // Save the previous conversation's scroll position
+      const el = scrollContainerRef.current;
+      if (el) {
+        scrollPositionsRef.current.set(prevId, el.scrollTop);
+      }
+    }
+    prevActiveIdRef.current = activeId;
+  }, [activeId]);
+
+  // Restore scroll position after items load for a conversation
+  useEffect(() => {
+    if (!activeId || items.length === 0) return;
+    const savedPos = scrollPositionsRef.current.get(activeId);
+    if (savedPos !== undefined) {
+      // Restore saved position
+      isRestoringRef.current = true;
+      requestAnimationFrame(() => {
+        const el = scrollContainerRef.current;
+        if (el) {
+          el.scrollTop = savedPos;
+        }
+        // Allow auto-scroll again after a brief delay
+        setTimeout(() => {
+          isRestoringRef.current = false;
+        }, 100);
+      });
+    } else {
+      // New conversation or first load — scroll to bottom
+      requestAnimationFrame(() => {
+        bottomRef.current?.scrollIntoView();
+      });
+    }
+    // Only run when activeId changes or items go from empty to populated
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeId, items.length > 0]);
+
+  // Smart auto-scroll: only scroll to bottom on new items if user is near bottom
+  useEffect(() => {
+    if (isRestoringRef.current) return;
+    if (isNearBottom()) {
+      bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [items, isNearBottom]);
 
   return (
     <div className="flex flex-col flex-1 min-w-0 bg-chat-bg">
@@ -77,7 +133,7 @@ export default function ChatArea({
       </div>
 
       {/* messages */}
-      <div className="flex-1 overflow-y-auto flex flex-col items-center">
+      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto flex flex-col items-center">
         <div className="w-full max-w-3xl">
         {items.length === 0 && !streaming && !waiting ? (
           <div className="flex items-center justify-center h-full">

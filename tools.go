@@ -315,13 +315,6 @@ type ddgResponse struct {
 }
 
 func searchWeb(ctx context.Context, query string) (string, error) {
-	// Check for a configured web search API key first
-	apiKey := os.Getenv("WEB_SEARCH_API_KEY")
-	if apiKey != "" {
-		return searchWithAPI(ctx, query, apiKey)
-	}
-
-	// Fall back to DuckDuckGo instant answer API (no key needed)
 	return searchDuckDuckGo(ctx, query)
 }
 
@@ -403,27 +396,4 @@ func searchDuckDuckGo(ctx context.Context, query string) (string, error) {
 	return strings.Join(parts, "\n\n"), nil
 }
 
-func searchWithAPI(ctx context.Context, query, apiKey string) (string, error) {
-	apiURL := os.Getenv("WEB_SEARCH_API_URL")
-	if apiURL == "" {
-		return "", fmt.Errorf("WEB_SEARCH_API_URL not set")
-	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, apiURL+"?q="+url.QueryEscape(query), nil)
-	if err != nil {
-		return "", fmt.Errorf("search request: %w", err)
-	}
-	req.Header.Set("Authorization", "Bearer "+apiKey)
-
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return "", fmt.Errorf("search request failed: %w", err)
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return "", fmt.Errorf("read response: %w", err)
-	}
-	return string(body), nil
-}
