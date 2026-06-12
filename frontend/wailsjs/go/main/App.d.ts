@@ -5,11 +5,17 @@ export function CreateConversation():Promise<string>;
 
 export function DeleteConversation(arg1:string):Promise<void>;
 
+export function FetchModels(arg1:string,arg2:string,arg3:string):Promise<string>;
+
 export function GetConversation(arg1:string):Promise<string>;
 
 export function GetConversations():Promise<string>;
 
+export function GetSettings():Promise<string>;
+
 export function RenameConversation(arg1:string,arg2:string):Promise<void>;
+
+export function SaveSettings(arg1:string):Promise<void>;
 
 export function SendMessage(arg1:string,arg2:string):Promise<void>;
 

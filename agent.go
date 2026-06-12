@@ -11,6 +11,8 @@ import (
 
 	"github.com/zendev-sh/goai"
 	"github.com/zendev-sh/goai/provider"
+	"github.com/zendev-sh/goai/provider/compat"
+	"github.com/zendev-sh/goai/provider/openai"
 	"github.com/zendev-sh/goai/provider/openrouter"
 )
 
@@ -21,6 +23,47 @@ func getProvider() provider.LanguageModel {
 		return activeProvider
 	}
 
+	s, err := loadSettingsFromFile()
+	if err == nil && s != nil && s.ActiveProvider != "" && len(s.Providers) > 0 {
+		var active *ProviderConfig
+		for _, p := range s.Providers {
+			if p.ID == s.ActiveProvider {
+				active = &p
+				break
+			}
+		}
+		if active == nil {
+			active = &s.Providers[0]
+		}
+		apiKey := decrypt(active.APIKey)
+		switch active.Type {
+		case "openrouter":
+			if active.BaseURL != "" && active.BaseURL != defaultBaseURL("openrouter") {
+				activeProvider = openrouter.Chat(active.Model, openrouter.WithAPIKey(apiKey), openrouter.WithBaseURL(active.BaseURL))
+			} else {
+				activeProvider = openrouter.Chat(active.Model, openrouter.WithAPIKey(apiKey))
+			}
+		case "openai":
+			if active.BaseURL != "" && active.BaseURL != defaultBaseURL("openai") {
+				activeProvider = openai.Chat(active.Model, openai.WithAPIKey(apiKey), openai.WithBaseURL(active.BaseURL))
+			} else {
+				activeProvider = openai.Chat(active.Model, openai.WithAPIKey(apiKey))
+			}
+		case "compat":
+			if active.BaseURL != "" {
+				opts := []compat.Option{compat.WithBaseURL(active.BaseURL)}
+				if apiKey != "" {
+					opts = append(opts, compat.WithAPIKey(apiKey))
+				}
+				activeProvider = compat.Chat(active.Model, opts...)
+			}
+		}
+		if activeProvider != nil {
+			return activeProvider
+		}
+	}
+
+	// Fallback: env vars
 	providerName := os.Getenv("AI_PROVIDER")
 	if providerName == "" {
 		providerName = "openrouter"
@@ -32,14 +75,21 @@ func getProvider() provider.LanguageModel {
 		if model == "" {
 			model = "openrouter/owl-alpha"
 		}
-		activeProvider = openrouter.Chat(model)
+		if key := os.Getenv("OPENROUTER_API_KEY"); key != "" {
+			activeProvider = openrouter.Chat(model, openrouter.WithAPIKey(key))
+		} else {
+			activeProvider = openrouter.Chat(model)
+		}
 	case "openai":
 		model := os.Getenv("AI_MODEL")
 		if model == "" {
 			model = "gpt-4o-mini"
 		}
-		// OpenAI model gets created via openai-compat
-		activeProvider = openrouter.Chat(model) // FIXME: use actual OpenAI provider
+		if key := os.Getenv("OPENAI_API_KEY"); key != "" {
+			activeProvider = openai.Chat(model, openai.WithAPIKey(key))
+		} else {
+			activeProvider = openai.Chat(model)
+		}
 	}
 
 	return activeProvider
@@ -114,7 +164,7 @@ You can help with anything: answering questions, writing notes, managing files, 
 func (a *App) runAgent(ctx context.Context, conversationID string, msgs []provider.Message) {
 	model := getProvider()
 	if model == nil {
-		a.emitError("No AI provider configured. Set OPENROUTER_API_KEY in your environment.")
+		a.emitError("No AI provider configured. Open Settings (gear icon) to add your API key.")
 		return
 	}
 

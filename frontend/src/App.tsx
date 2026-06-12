@@ -3,6 +3,7 @@ import { useChatStore, genId, storedMessagesToItems } from "./stores/chatStore";
 import { useChatEvents } from "./hooks/useChat";
 import Sidebar from "./components/Sidebar";
 import ChatArea from "./components/ChatArea";
+import SettingsPage from "./components/SettingsPage";
 import {
   GetConversations,
   GetConversation,
@@ -105,6 +106,7 @@ function App() {
         onSend={handleSend}
         onStop={handleStop}
       />
+      <SettingsPage />
     </div>
   );
 }

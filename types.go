@@ -25,3 +25,22 @@ type ClientMessage struct {
 	Reasoning string  `json:"reasoning,omitempty"`
 	ToolCalls *string `json:"tool_calls,omitempty"`
 }
+
+type ProviderConfig struct {
+	ID      string `json:"id"`
+	Name    string `json:"name"`
+	Type    string `json:"type"`
+	APIKey  string `json:"api_key"`
+	Model   string `json:"model"`
+	BaseURL string `json:"base_url"`
+}
+
+type Settings struct {
+	ActiveProvider string           `json:"active_provider"`
+	Providers      []ProviderConfig `json:"providers"`
+}
+
+type ModelInfo struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
