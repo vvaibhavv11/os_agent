@@ -111,7 +111,20 @@ func (a *App) GetConversation(id string) string {
 }
 
 func (a *App) CreateConversation() string {
-	model := os.Getenv("OPENROUTER_MODEL")
+	model := ""
+	// Read model from settings file (active provider)
+	if s, err := loadSettingsFromFile(); err == nil && s != nil {
+		for _, p := range s.Providers {
+			if p.ID == s.ActiveProvider {
+				model = p.Model
+				break
+			}
+		}
+	}
+	// Fallback to env var
+	if model == "" {
+		model = os.Getenv("OPENROUTER_MODEL")
+	}
 	if model == "" {
 		model = "openrouter/owl-alpha"
 	}

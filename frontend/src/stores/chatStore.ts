@@ -55,6 +55,15 @@ export interface SystemMessageItem {
 
 export type StreamItem = UserMessageItem | AssistantMessageItem | ThoughtItem | ToolCallItem | SystemMessageItem;
 
+export interface TokenUsage {
+  inputTokens: number;
+  outputTokens: number;
+  totalTokens: number;
+  reasoningTokens: number;
+  cacheReadTokens: number;
+  cacheWriteTokens: number;
+}
+
 let idCounter = 0;
 export function genId(): string {
   return `item_${++idCounter}`;
@@ -68,6 +77,7 @@ interface ChatState {
   streaming: boolean;
   waiting: boolean;
   connected: boolean;
+  tokenUsage: TokenUsage | null;
 
   setConversations: (convs: Conversation[]) => void;
   setActiveId: (id: string) => void;
@@ -81,6 +91,7 @@ interface ChatState {
   setStreaming: (v: boolean) => void;
   setWaiting: (v: boolean) => void;
   setConnected: (v: boolean) => void;
+  setTokenUsage: (usage: TokenUsage | null) => void;
   clearStreamingHead: () => void;
   flushHead: () => void;
 }
@@ -142,6 +153,7 @@ export const useChatStore = create<ChatState>((set) => ({
   streaming: false,
   waiting: false,
   connected: false,
+  tokenUsage: null,
 
   setConversations: (convs) => set({ conversations: convs }),
   setActiveId: (id) => set({ activeId: id }),
@@ -191,6 +203,7 @@ export const useChatStore = create<ChatState>((set) => ({
   setStreaming: (v) => set({ streaming: v }),
   setWaiting: (v) => set({ waiting: v }),
   setConnected: (v) => set({ connected: v }),
+  setTokenUsage: (usage) => set({ tokenUsage: usage }),
   clearStreamingHead: () => set({ streamingHead: [] }),
   flushHead: () =>
     set((s) => ({

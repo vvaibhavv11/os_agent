@@ -243,7 +243,16 @@ func (a *App) runAgent(ctx context.Context, conversationID string, msgs []provid
 			stepReasoning.Reset()
 			toolCalls = nil
 			toolResults = nil
-			a.emitEvent("step_finish", nil)
+			a.emitEvent("step_finish", map[string]any{
+				"usage": map[string]any{
+					"inputTokens":      chunk.Usage.InputTokens,
+					"outputTokens":     chunk.Usage.OutputTokens,
+					"totalTokens":      chunk.Usage.TotalTokens,
+					"reasoningTokens":  chunk.Usage.ReasoningTokens,
+					"cacheReadTokens":  chunk.Usage.CacheReadTokens,
+					"cacheWriteTokens": chunk.Usage.CacheWriteTokens,
+				},
+			})
 		case provider.ChunkFinish:
 			stepCount++
 			persistStep(conversationID, stepText.String(), stepReasoning.String(), toolCalls, toolResults)
@@ -259,7 +268,16 @@ func (a *App) runAgent(ctx context.Context, conversationID string, msgs []provid
 				"updated_at":   time.Now().UTC().Format(time.RFC3339),
 			})
 			a.storage.WriteJSONMirror(conversationID)
-			a.emitEvent("finish", nil)
+			a.emitEvent("finish", map[string]any{
+				"usage": map[string]any{
+					"inputTokens":      chunk.Usage.InputTokens,
+					"outputTokens":     chunk.Usage.OutputTokens,
+					"totalTokens":      chunk.Usage.TotalTokens,
+					"reasoningTokens":  chunk.Usage.ReasoningTokens,
+					"cacheReadTokens":  chunk.Usage.CacheReadTokens,
+					"cacheWriteTokens": chunk.Usage.CacheWriteTokens,
+				},
+			})
 			convs, _ := a.storage.ListConversations()
 			a.emitEvent("conversations_update", map[string]any{
 				"conversations": convs,

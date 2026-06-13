@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef } from "react";
 import type { Conversation, StreamItem } from "../stores/chatStore";
+import { useModelSelectorStore } from "../stores/modelSelectorStore";
 import MessageBubble from "./MessageBubble";
 import ThinkingBlock from "./ThinkingBlock";
 import ToolCall from "./ToolCall";
@@ -34,6 +35,15 @@ export default function ChatArea({
   const prevActiveIdRef = useRef<string>(activeId);
   const isRestoringRef = useRef(false);
   const activeConv = conversations.find((c) => c.id === activeId);
+
+  // Model selector
+  const { selectedModel, selectedProvider, providers, initialized, init } = useModelSelectorStore();
+  const selectedProviderInfo = providers.find((p) => p.id === selectedProvider);
+  const displayModel = selectedModel || activeConv?.model || "AI Assistant";
+
+  useEffect(() => {
+    if (!initialized) init();
+  }, [initialized, init]);
 
   // Helper: check if user is scrolled near bottom
   const isNearBottom = useCallback(() => {
@@ -113,7 +123,20 @@ export default function ChatArea({
                     <span className="text-indigo-400/80">Generating</span>
                   </span>
                 )}
-                {!(streaming || waiting) && (activeConv.model || "AI Assistant")}
+                {!(streaming || waiting) && (
+                  <span className="flex items-center gap-1">
+                    {selectedProviderInfo && (
+                      <span className={`text-[10px] font-medium px-1 py-0.5 rounded ${
+                        selectedProviderInfo.type === 'openrouter' ? 'bg-blue-500/15 text-blue-400' :
+                        selectedProviderInfo.type === 'openai' ? 'bg-green-500/15 text-green-400' :
+                        'bg-purple-500/15 text-purple-400'
+                      }`}>
+                        {selectedProviderInfo.name}
+                      </span>
+                    )}
+                    {displayModel}
+                  </span>
+                )}
               </span>
             )}
           </div>

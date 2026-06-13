@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { GetSettings, SaveSettings, FetchModels } from "../../wailsjs/go/main/App";
+import { useModelSelectorStore } from './modelSelectorStore';
 
 export interface ProviderForm {
   id: string;
@@ -109,6 +110,8 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
         })),
       }));
       set({ dirty: false, saved: true });
+      // Refresh model selector with updated providers
+      useModelSelectorStore.getState().refreshProviders();
     } catch { /* ignore */ }
     set({ loading: false });
   },

@@ -127,13 +127,19 @@ export function useChatEvents() {
       store.getState().updateToolResult(data.toolCallId, data.result);
     });
 
-    on("step_finish", () => {
+    on("step_finish", (data: any) => {
       store.getState().setStreaming(false);
+      if (data?.usage) {
+        store.getState().setTokenUsage(data.usage);
+      }
     });
 
-    on("finish", () => {
+    on("finish", (data: any) => {
       store.getState().setStreaming(false);
       store.getState().setWaiting(false);
+      if (data?.usage) {
+        store.getState().setTokenUsage(data.usage);
+      }
       if (thoughtItemId.current) {
         store.getState().updateItemById(thoughtItemId.current, { status: "ready" } as any);
         thoughtItemId.current = null;

@@ -1,4 +1,6 @@
 import { useState, useRef, useEffect } from "react";
+import ModelSelector from './ModelSelector';
+import ContextMeter from './ContextMeter';
 
 interface InputBarProps {
   onSend: (text: string) => void;
@@ -52,6 +54,10 @@ export default function InputBar({ onSend, onStop, disabled, streaming, waiting 
     <div className="px-4 pb-4 pt-2 bg-gradient-to-t from-chat-bg via-chat-bg to-transparent">
       <div className="flex items-end gap-2 bg-chat-surface/80 backdrop-blur-sm border border-chat-border/50 rounded-2xl px-4 py-3 shadow-lg shadow-black/20 transition-all duration-200 focus-within:border-chat-accent/50 focus-within:shadow-indigo-500/10">
         <div className="flex-1 flex flex-col">
+          <div className="mb-1.5 flex items-center gap-2">
+            <ModelSelector />
+            <ContextMeter />
+          </div>
           <textarea
             ref={textareaRef}
             value={text}
