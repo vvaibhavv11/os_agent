@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { useChatStore, type TokenUsage } from "../stores/chatStore";
+import { useModelSelectorStore } from "../stores/modelSelectorStore";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -33,6 +34,7 @@ const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
 
 export default function ContextMeter() {
   const tokenUsage = useChatStore((s) => s.tokenUsage);
+  const contextLength = useModelSelectorStore((s) => s.contextLength);
   const [showTooltip, setShowTooltip] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
 
@@ -50,9 +52,8 @@ export default function ContextMeter() {
 
   if (!tokenUsage || tokenUsage.totalTokens === 0) return null;
 
-  // Estimate context window usage. Most models have 128k context windows.
-  // We use the inputTokens as "used" since that represents the conversation context sent.
-  const contextMax = 128_000; // conservative default
+  // Use the context length fetched from models.dev via the backend
+  const contextMax = contextLength || 65_536;
   const contextUsed = tokenUsage.inputTokens;
   const percentage = Math.min((contextUsed / contextMax) * 100, 100);
   const dashOffset = CIRCUMFERENCE - (percentage / 100) * CIRCUMFERENCE;

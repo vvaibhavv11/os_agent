@@ -10,6 +10,10 @@ export function DeleteConversation(arg1) {
   return window['go']['main']['App']['DeleteConversation'](arg1);
 }
 
+export function FetchModelContextLength(arg1, arg2, arg3, arg4) {
+  return window['go']['main']['App']['FetchModelContextLength'](arg1, arg2, arg3, arg4);
+}
+
 export function FetchModels(arg1, arg2, arg3) {
   return window['go']['main']['App']['FetchModels'](arg1, arg2, arg3);
 }
@@ -20,6 +24,10 @@ export function GetConversation(arg1) {
 
 export function GetConversations() {
   return window['go']['main']['App']['GetConversations']();
+}
+
+export function GetModelContextLength(arg1, arg2, arg3, arg4) {
+  return window['go']['main']['App']['GetModelContextLength'](arg1, arg2, arg3, arg4);
 }
 
 export function GetSettings() {

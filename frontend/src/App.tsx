@@ -46,6 +46,10 @@ function App() {
   );
 
   const handleNew = useCallback(() => {
+    StopGeneration();
+    useChatStore.getState().setStreaming(false);
+    useChatStore.getState().setWaiting(false);
+    useChatStore.getState().setTokenUsage(null);
     CreateConversation().then((raw: string) => {
       if (!raw) return;
       const conv = JSON.parse(raw);

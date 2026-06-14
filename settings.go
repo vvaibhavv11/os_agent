@@ -295,7 +295,8 @@ func (a *App) FetchModels(providerType, baseURL, apiKey string) string {
 
 	var result struct {
 		Data []struct {
-			ID string `json:"id"`
+			ID            string `json:"id"`
+			ContextLength int    `json:"context_length"`
 		} `json:"data"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
@@ -304,7 +305,7 @@ func (a *App) FetchModels(providerType, baseURL, apiKey string) string {
 
 	models := make([]ModelInfo, 0, len(result.Data))
 	for _, m := range result.Data {
-		models = append(models, ModelInfo{ID: m.ID, Name: m.ID})
+		models = append(models, ModelInfo{ID: m.ID, Name: m.ID, ContextLength: m.ContextLength})
 	}
 	data, _ := json.Marshal(models)
 	return string(data)

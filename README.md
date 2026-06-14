@@ -1,22 +1,31 @@
 # AI Desktop App
 
-An AI agentic desktop assistant powered by [Wails](https://wails.io) v2 — Go backend + React/TypeScript (Vite) frontend.
+An **agentic AI desktop assistant** powered by [Wails](https://wails.io) v2 — Go backend + React/TypeScript (Vite) frontend. Beyond chat: the AI can **write code, edit files, run commands, and search the web** — all through a native desktop UI.
 
 ## Features
 
-- **AI chat** over OpenRouter with any model — streaming text, reasoning/thoughts, and tool calls
-- **Tool use** — write files, edit text in files, run bash commands, search the web (DuckDuckGo, no API key needed)
-- **Per-conversation scroll memory** — each chat remembers its own scroll position when switching
-- **Smart auto-scroll** — only scrolls to bottom on new content if you're already near the bottom
-- **Conversation management** — create, rename, delete, switch between multiple chats
-- **Auto-title** — conversations are automatically titled from the first user message (truncated to 30 chars)
-- **Tool call UI** — expandable tool call cards with status indicators (executing/completed/failed) and results
+### Agentic Tool Use
+- **Write & edit files** — AI creates and modifies source code in your project
+- **Run bash commands** — execute shell commands, install packages, run builds
+- **Web search** — DuckDuckGo instant answers, no API key needed
+- **Multi-tool orchestration** — AI chains tool calls to solve complex tasks
+
+### Chat & UX
+- **Streaming responses** — real-time text, reasoning/thoughts, and tool calls from any OpenRouter model
 - **Thought/reasoning display** — loading spinner during reasoning, expandable on completion
-- **Error handling** — inline system messages for errors, connection status indicator
-- **Stop generation** — cancel ongoing AI responses mid-stream
-- **Empty state** — suggestion buttons to quickly start common tasks
-- **SQLite storage** (WAL mode) at `~/.ai-chat/conversations.db` with JSON mirrors
-- **Typing indicator** — shows when the AI is thinking or waiting
+- **Tool call cards** — expandable UI with status indicators (executing/completed/failed) and results
+- **Smart auto-scroll** — follows new content only when you're near the bottom
+- **Per-conversation scroll memory** — remembers scroll position when switching chats
+- **Stop mid-generation** — cancel ongoing AI responses
+- **Empty state suggestions** — quick-start buttons for common tasks
+- **Typing indicator** — shows when the AI is thinking
+- **Conversation management** — create, rename, delete, switch between chats; auto-titled from first message
+
+### Under the Hood
+- **Automatic context-length detection** — resolves from [models.dev](https://models.dev) (primary) or `/v1/models` endpoint (fallback), covering **25+ providers** (OpenAI, Anthropic, DeepSeek, Gemini, Groq, Mistral, Together, Perplexity, Cohere, Fireworks, HuggingFace, xAI, NVIDIA, and more). No manual configuration or hardcoded defaults.
+- **Local caching** — models.dev registry cached to `~/.ai-chat/models.json` with background refresh (every 60 min); no redundant API calls
+- **Persistent storage** — SQLite (WAL mode) at `~/.ai-chat/conversations.db` with JSON mirrors
+- **Model-agnostic** — use any model from OpenRouter, OpenAI, Anthropic, or any provider serving a `/v1/chat/completions` compatible API
 - **Gruvbox dark theme** — warm, eye-friendly dark UI
 
 ## Requirements

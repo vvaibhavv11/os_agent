@@ -66,9 +66,16 @@ export default function ChatArea({
     prevActiveIdRef.current = activeId;
   }, [activeId]);
 
-  // Restore scroll position after items load for a conversation
+  // Reset scroll to top when switching to a new/empty conversation
   useEffect(() => {
-    if (!activeId || items.length === 0) return;
+    if (!activeId) return;
+    if (items.length === 0) {
+      const el = scrollContainerRef.current;
+      if (el) {
+        el.scrollTop = 0;
+      }
+      return;
+    }
     const savedPos = scrollPositionsRef.current.get(activeId);
     if (savedPos !== undefined) {
       // Restore saved position
@@ -159,7 +166,7 @@ export default function ChatArea({
       <div ref={scrollContainerRef} className="flex-1 overflow-y-auto flex flex-col items-center">
         <div className="w-full max-w-3xl">
         {items.length === 0 && !streaming && !waiting ? (
-          <div className="flex items-center justify-center h-full">
+          <div className="flex items-center justify-center min-h-[calc(100vh-10rem)]">
             <div className="text-center max-w-sm">
               <div className="w-20 h-20 mx-auto mb-6 rounded-2xl bg-gradient-to-br from-indigo-500/20 to-purple-500/20 flex items-center justify-center border border-indigo-500/10">
                 <svg

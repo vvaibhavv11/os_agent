@@ -1,11 +1,12 @@
 import { create } from 'zustand';
-import { GetSettings, SaveSettings, FetchModels } from '../../wailsjs/go/main/App';
+import { GetSettings, SaveSettings, FetchModels, GetModelContextLength } from '../../wailsjs/go/main/App';
 
 // --- Interfaces ---
 
 export interface ModelInfo {
   id: string;
   name: string;
+  context_length?: number;
 }
 
 export interface ProviderInfo {
@@ -40,6 +41,9 @@ interface ModelSelectorState {
   // Cached models per provider ID
   modelsByProvider: Record<string, CachedModels>;
 
+  // Context length for the currently selected model
+  contextLength: number;
+
   // Favorites
   favoriteModels: FavoriteModel[];
 
@@ -51,6 +55,7 @@ interface ModelSelectorState {
   refreshProviders: () => Promise<void>;
   setSelection: (providerId: string, modelId: string) => void;
   fetchModelsForProvider: (providerId: string) => Promise<void>;
+  fetchContextLength: (providerId: string, modelId: string) => Promise<void>;
   toggleFavorite: (provider: string, modelId: string) => void;
   isFavorite: (provider: string, modelId: string) => boolean;
 }
@@ -117,6 +122,7 @@ export const useModelSelectorStore = create<ModelSelectorState>((set, get) => ({
   selectedModel: '',
   providers: [],
   modelsByProvider: {},
+  contextLength: 65536,
   favoriteModels: [],
   initialized: false,
 
@@ -139,6 +145,11 @@ export const useModelSelectorStore = create<ModelSelectorState>((set, get) => ({
         favoriteModels,
         initialized: true,
       });
+
+      // Fetch context length for the initially selected model
+      if (activeId && selectedModel) {
+        get().fetchContextLength(activeId, selectedModel);
+      }
     } catch (err) {
       console.error('[modelSelectorStore] init failed:', err);
       // Still mark as initialized so the UI isn't stuck
@@ -160,6 +171,9 @@ export const useModelSelectorStore = create<ModelSelectorState>((set, get) => ({
   setSelection(providerId: string, modelId: string) {
     // Update local state immediately
     set({ selectedProvider: providerId, selectedModel: modelId });
+
+    // Fetch context length for the new model
+    get().fetchContextLength(providerId, modelId);
 
     // Persist in background — don't block the UI
     (async () => {
@@ -243,6 +257,22 @@ export const useModelSelectorStore = create<ModelSelectorState>((set, get) => ({
         },
       });
       console.error('[modelSelectorStore] fetchModelsForProvider failed:', err);
+    }
+  },
+
+  async fetchContextLength(providerId: string, modelId: string) {
+    if (!providerId || !modelId) return;
+    try {
+      const { providers } = get();
+      const provider = providers.find((p) => p.id === providerId);
+      if (!provider) return;
+      const result = await GetModelContextLength(provider.type, provider.baseURL, provider.apiKey, modelId);
+      const ctx = parseInt(result, 10);
+      if (ctx > 0) {
+        set({ contextLength: ctx });
+      }
+    } catch (err) {
+      console.error('[modelSelectorStore] fetchContextLength failed:', err);
     }
   },
 
