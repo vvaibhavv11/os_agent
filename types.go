@@ -36,8 +36,13 @@ type ProviderConfig struct {
 }
 
 type Settings struct {
-	ActiveProvider string           `json:"active_provider"`
-	Providers      []ProviderConfig `json:"providers"`
+	ActiveProvider     string           `json:"active_provider"`
+	Providers          []ProviderConfig `json:"providers"`
+	MemoryEnabled      *bool            `json:"memory_enabled,omitempty"`
+	UserProfileEnabled *bool            `json:"user_profile_enabled,omitempty"`
+	MemoryCharLimit    int              `json:"memory_char_limit,omitempty"`
+	UserCharLimit      int              `json:"user_char_limit,omitempty"`
+	NudgeInterval      int              `json:"nudge_interval,omitempty"`
 }
 
 type ModelInfo struct {

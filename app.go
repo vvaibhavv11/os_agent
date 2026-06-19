@@ -12,14 +12,19 @@ import (
 )
 
 type App struct {
-	ctx       context.Context
-	storage   *Storage
-	cancelFn  context.CancelFunc
-	cancelMu  sync.Mutex
+	ctx                   context.Context
+	storage               *Storage
+	cancelFn              context.CancelFunc
+	cancelMu              sync.Mutex
+	memoryStore           *MemoryStore
+	memoryNudgeInterval   int
+	turnsSinceMemoryNudge int
 }
 
 func NewApp() *App {
-	return &App{}
+	return &App{
+		memoryNudgeInterval: 10,
+	}
 }
 
 func (a *App) startup(ctx context.Context) {
@@ -33,6 +38,40 @@ func (a *App) startup(ctx context.Context) {
 	}
 	a.storage = storage
 	runtime.LogInfo(ctx, "AI Chat Desktop started")
+
+	// Load memory settings
+	memoryEnabled := true
+	userProfileEnabled := true
+	memoryCharLimit := 2200
+	userCharLimit := 1375
+	nudgeInterval := 10
+
+	s, err := loadSettingsFromFile()
+	if err == nil && s != nil {
+		if s.MemoryEnabled != nil {
+			memoryEnabled = *s.MemoryEnabled
+		}
+		if s.UserProfileEnabled != nil {
+			userProfileEnabled = *s.UserProfileEnabled
+		}
+		if s.MemoryCharLimit > 0 {
+			memoryCharLimit = s.MemoryCharLimit
+		}
+		if s.UserCharLimit > 0 {
+			userCharLimit = s.UserCharLimit
+		}
+		if s.NudgeInterval > 0 {
+			nudgeInterval = s.NudgeInterval
+		}
+	}
+	a.memoryNudgeInterval = nudgeInterval
+
+	if memoryEnabled || userProfileEnabled {
+		store := NewMemoryStore("", memoryCharLimit, userCharLimit, memoryEnabled, userProfileEnabled)
+		store.LoadFromDisk()
+		a.memoryStore = store
+		runtime.LogInfo(ctx, "Memory store initialized")
+	}
 
 	// Emit init event with existing conversations
 	convs, err := storage.ListConversations()
@@ -207,6 +246,11 @@ func (a *App) SendMessage(text, conversationID string) {
 	a.cancelFn = cancel
 	a.cancelMu.Unlock()
 
+	// Increment memory nudge counter
+	if a.memoryStore != nil && a.memoryNudgeInterval > 0 {
+		a.turnsSinceMemoryNudge++
+	}
+
 	// Start streaming in a goroutine
 	go func() {
 		defer func() {
@@ -223,6 +267,10 @@ func (a *App) SendMessage(text, conversationID string) {
 		goaiMsgs := storedToGoAIMessages(msgs)
 		a.runAgent(ctx, conversationID, goaiMsgs)
 	}()
+}
+
+func (a *App) resetMemoryNudge() {
+	a.turnsSinceMemoryNudge = 0
 }
 
 func (a *App) StopGeneration() {

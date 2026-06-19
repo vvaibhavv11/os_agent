@@ -148,6 +148,18 @@ export function useChatEvents() {
       reasoningBuf.current = "";
     });
 
+    on("memory_review", (data: any) => {
+      if (data?.actions?.length > 0) {
+        store.getState().appendItem({
+          kind: "memory_review",
+          id: genId(),
+          actions: data.actions,
+          summary: data.summary || data.actions.join(" · "),
+          timestamp: Date.now(),
+        });
+      }
+    });
+
     on("error", (data: any) => {
       store.getState().setStreaming(false);
       store.getState().setWaiting(false);

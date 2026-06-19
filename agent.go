@@ -150,15 +150,34 @@ func storedToGoAIMessages(msgs []StoredMessage) []provider.Message {
 	return out
 }
 
-func agentSystemPrompt() string {
-	return `You are a helpful desktop AI assistant that helps the user with their daily computer tasks. You have access to four tools:
+func agentSystemPrompt(store *MemoryStore, nudgeActive bool) string {
+	base := `You are a helpful desktop AI assistant that helps the user with their daily computer tasks. You have access to tools:
 
 - **write(path, content)** — Write content to a file (notes, documents, code snippets, etc.). Creates parent directories automatically. Use for new files or complete rewrites.
 - **edit(filePath, edits[])** — Edit a file using exact text replacement. Each edits[].oldText must match a unique region of the file. Supports multiple edits in one call. Use for precise changes to existing files.
 - **bash(command)** — Execute a bash command on the system. Use this to check system info, manage files, install packages, or run programs.
 - **webSearch(query)** — Search the web for current information, news, or any data from the internet. Use this when you need up-to-date information or facts you're not sure about.
+- **memory(action, target, content?, old_text?)** — Save/update/remove persistent information that survives across sessions.
 
 You can help with anything: answering questions, writing notes, managing files, checking system information, running programs, researching topics, organizing data, and more. Be conversational, helpful, and proactive. When you use tools, explain what you're doing in a natural way.`
+
+	var parts []string
+	parts = append(parts, base)
+
+	if store != nil {
+		if memBlock := store.FormatForSystemPrompt("memory"); memBlock != "" {
+			parts = append(parts, memBlock)
+		}
+		if userBlock := store.FormatForSystemPrompt("user"); userBlock != "" {
+			parts = append(parts, userBlock)
+		}
+	}
+
+	if nudgeActive {
+		parts = append(parts, `Also consider if any user preferences, corrections, or environment facts from this conversation should be saved to memory with the memory tool. Keep it compact and focused on things that will still matter in future sessions.`)
+	}
+
+	return strings.Join(parts, "\n\n")
 }
 
 func (a *App) runAgent(ctx context.Context, conversationID string, msgs []provider.Message) {
@@ -175,9 +194,16 @@ func (a *App) runAgent(ctx context.Context, conversationID string, msgs []provid
 		makeWebSearchTool(),
 	}
 
+	if a.memoryStore != nil {
+		memTool := makeMemoryTool(a.memoryStore, a.resetMemoryNudge, nil)
+		tools = append(tools, memTool)
+	}
+
+	nudgeActive := a.memoryStore != nil && a.memoryNudgeInterval > 0 && a.turnsSinceMemoryNudge >= a.memoryNudgeInterval
+
 	stream, err := goai.StreamText(ctx, model,
 		goai.WithMessages(msgs...),
-		goai.WithSystem(agentSystemPrompt()),
+		goai.WithSystem(agentSystemPrompt(a.memoryStore, nudgeActive)),
 		goai.WithTools(tools...),
 		goai.WithMaxSteps(30),
 	)
@@ -292,9 +318,23 @@ func (a *App) runAgent(ctx context.Context, conversationID string, msgs []provid
 		}
 	}
 
+	// Spawn background memory review after the streaming turn completes
+	if a.memoryStore != nil && !isContextCancelled(ctx) {
+		a.spawnMemoryReview(ctx, conversationID, msgs)
+	}
+
 	// If the context was canceled, emit finish to reset frontend state
 	if ctx.Err() != nil {
 		a.emitEvent("finish", nil)
+	}
+}
+
+func isContextCancelled(ctx context.Context) bool {
+	select {
+	case <-ctx.Done():
+		return true
+	default:
+		return false
 	}
 }
 

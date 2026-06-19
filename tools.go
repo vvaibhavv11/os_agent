@@ -298,6 +298,61 @@ func makeWebSearchTool() goai.Tool {
 		})
 }
 
+func makeMemoryTool(store *MemoryStore, onNudge func(), collector *reviewActionCollector) goai.Tool {
+	return goai.NewTool("memory", `Save durable information to persistent memory that survives across sessions. Memory is injected into future turns, so keep it compact and focused on facts that will still matter later.
+
+WHEN TO SAVE (do this proactively, don't wait to be asked):
+- User corrects you or says 'remember this' / 'don't do that again'
+- User shares a preference, habit, or personal detail (name, role, timezone, coding style)
+- You discover something about the environment (OS, installed tools, project structure)
+- You learn a convention, API quirk, or workflow specific to this user's setup
+
+TWO TARGETS:
+- 'user': who the user is — name, role, preferences, communication style
+- 'memory': your notes — environment facts, project conventions, tool quirks, lessons learned
+
+ACTIONS: add (new entry), replace (update existing — old_text identifies it by substring match), remove (delete — old_text identifies it by substring match).`,
+		func(ctx context.Context, in struct {
+			Action  string `json:"action" jsonschema:"description=The action to perform: add, replace, or remove"`
+			Target  string `json:"target" jsonschema:"description=Which store: 'memory' for personal notes, 'user' for user profile"`
+			Content string `json:"content,omitempty" jsonschema:"description=Entry content. Required for add and replace."`
+			OldText string `json:"old_text,omitempty" jsonschema:"description=Short unique substring identifying the entry to replace or remove. Required for replace and remove."`
+		}) (string, error) {
+			if in.Target != "memory" && in.Target != "user" {
+				return `{"success":false,"error":"Invalid target. Use 'memory' or 'user'."}`, nil
+			}
+			if !store.IsEnabled(in.Target) {
+				return fmt.Sprintf(`{"success":false,"error":"%s is disabled in settings."}`, in.Target), nil
+			}
+			if in.Action == "add" || in.Action == "replace" {
+				if strings.TrimSpace(in.Content) == "" {
+					return `{"success":false,"error":"Content cannot be empty."}`, nil
+				}
+			}
+			if in.Action == "replace" || in.Action == "remove" {
+				if strings.TrimSpace(in.OldText) == "" {
+					return fmt.Sprintf(`{"success":false,"error":"old_text is required for '%s' action."}`, in.Action), nil
+				}
+			}
+
+			result := store.Dispatch(in.Action, in.Target, in.Content, in.OldText)
+			jsonResult := memoryToolResultToJSON(result)
+
+			if result != nil && result.Success && onNudge != nil {
+				onNudge()
+			}
+
+			if result != nil && result.Success && collector != nil {
+				desc := summarizeMemoryAction("memory", jsonResult)
+				if desc != "" {
+					collector.add(desc)
+				}
+			}
+
+			return jsonResult, nil
+		})
+}
+
 func resolvePath(p string) string {
 	if filepath.IsAbs(p) {
 		return p

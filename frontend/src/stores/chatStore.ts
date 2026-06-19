@@ -53,7 +53,15 @@ export interface SystemMessageItem {
   timestamp: number;
 }
 
-export type StreamItem = UserMessageItem | AssistantMessageItem | ThoughtItem | ToolCallItem | SystemMessageItem;
+export interface MemoryReviewItem {
+  kind: "memory_review";
+  id: string;
+  actions: string[];
+  summary: string;
+  timestamp: number;
+}
+
+export type StreamItem = UserMessageItem | AssistantMessageItem | ThoughtItem | ToolCallItem | SystemMessageItem | MemoryReviewItem;
 
 export interface TokenUsage {
   inputTokens: number;
