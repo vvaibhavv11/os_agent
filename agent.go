@@ -199,7 +199,7 @@ func (a *App) runAgent(ctx context.Context, conversationID string, msgs []provid
 		tools = append(tools, memTool)
 	}
 
-	nudgeActive := a.memoryStore != nil && a.memoryNudgeInterval > 0 && a.turnsSinceMemoryNudge >= a.memoryNudgeInterval
+	nudgeActive := a.memoryStore != nil && a.memoryNudgeInterval > 0 && int(a.turnsSinceMemoryNudge.Load()) >= a.memoryNudgeInterval
 
 	stream, err := goai.StreamText(ctx, model,
 		goai.WithMessages(msgs...),

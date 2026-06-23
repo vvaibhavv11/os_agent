@@ -49,6 +49,10 @@ func (a *App) spawnMemoryReview(ctx context.Context, conversationID string, msgs
 	}
 
 	go func() {
+		// Serialize with the main agent's memory operations
+		a.memoryReviewMu.Lock()
+		defer a.memoryReviewMu.Unlock()
+
 		log.Printf("[memory] background review starting for %s", conversationID)
 
 		reviewCtx, cancel := context.WithTimeout(context.Background(), 120*time.Second)

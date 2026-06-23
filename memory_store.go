@@ -69,7 +69,10 @@ func (s *MemoryStore) LoadFromDisk() {
 	if dir == "" {
 		dir = memoryDir()
 	}
-	os.MkdirAll(dir, 0755)
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		fmt.Fprintf(os.Stderr, "[memory] failed to create directory %s: %v\n", dir, err)
+		return
+	}
 
 	if s.memoryEnabled {
 		s.memoryEntries = s.readFile(filepath.Join(dir, "MEMORY.md"))
@@ -86,6 +89,8 @@ func (s *MemoryStore) LoadFromDisk() {
 }
 
 func (s *MemoryStore) FormatForSystemPrompt(target string) string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	switch target {
 	case "memory":
 		return s.snapshotMemory
@@ -117,6 +122,9 @@ func (s *MemoryStore) Add(target, content string) *memoryToolResult {
 	if content == "" {
 		return &memoryToolResult{Success: false, Error: "Content cannot be empty.", Target: target}
 	}
+	if strings.Contains(content, entryDelimiter) {
+		return &memoryToolResult{Success: false, Error: "Content must not contain the § delimiter.", Target: target}
+	}
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -134,7 +142,10 @@ func (s *MemoryStore) Add(target, content string) *memoryToolResult {
 		}
 	}
 
-	newEntries := append(entries, content)
+	// Size check with a temporary slice (don't mutate entries)
+	newEntries := make([]string, len(entries)+1)
+	copy(newEntries, entries)
+	newEntries[len(entries)] = content
 	newTotal := len(strings.Join(newEntries, entryDelimiter))
 
 	if newTotal > limit {
@@ -148,9 +159,11 @@ func (s *MemoryStore) Add(target, content string) *memoryToolResult {
 		}
 	}
 
-	entries = append(entries, content)
-	s.setEntries(target, entries)
-	s.writeFile(s.pathFor(target), entries)
+	// Write to disk first, then commit in-memory
+	if err := s.writeFile(s.pathFor(target), newEntries); err != nil {
+		return &memoryToolResult{Success: false, Error: fmt.Sprintf("Failed to write memory file: %v", err), Target: target}
+	}
+	s.setEntries(target, newEntries)
 
 	return s.successResult(target, "Entry added.", &memoryActionInfo{Action: "add", Target: target, Content: content})
 }
@@ -164,6 +177,9 @@ func (s *MemoryStore) Replace(target, oldText, newContent string) *memoryToolRes
 	}
 	if newContent == "" {
 		return &memoryToolResult{Success: false, Error: "new_content cannot be empty. Use 'remove' to delete entries.", Target: target}
+	}
+	if strings.Contains(newContent, entryDelimiter) {
+		return &memoryToolResult{Success: false, Error: "Content must not contain the § delimiter.", Target: target}
 	}
 
 	s.mu.Lock()
@@ -212,10 +228,11 @@ func (s *MemoryStore) Replace(target, oldText, newContent string) *memoryToolRes
 
 	idx := matches[0]
 
-	testEntries := make([]string, len(entries))
-	copy(testEntries, entries)
-	testEntries[idx] = newContent
-	newTotal := len(strings.Join(testEntries, entryDelimiter))
+	// Work on a copy for size check and mutation
+	newEntries := make([]string, len(entries))
+	copy(newEntries, entries)
+	newEntries[idx] = newContent
+	newTotal := len(strings.Join(newEntries, entryDelimiter))
 
 	if newTotal > limit {
 		current := s.charCount(target)
@@ -228,9 +245,11 @@ func (s *MemoryStore) Replace(target, oldText, newContent string) *memoryToolRes
 		}
 	}
 
-	entries[idx] = newContent
-	s.setEntries(target, entries)
-	s.writeFile(s.pathFor(target), entries)
+	// Write to disk first, then commit in-memory
+	if err := s.writeFile(s.pathFor(target), newEntries); err != nil {
+		return &memoryToolResult{Success: false, Error: fmt.Sprintf("Failed to write memory file: %v", err), Target: target}
+	}
+	s.setEntries(target, newEntries)
 
 	return s.successResult(target, "Entry replaced.", &memoryActionInfo{Action: "replace", Target: target, Content: newContent, OldText: oldText})
 }
@@ -285,9 +304,17 @@ func (s *MemoryStore) Remove(target, oldText string) *memoryToolResult {
 	}
 
 	idx := matches[0]
-	entries = append(entries[:idx], entries[idx+1:]...)
-	s.setEntries(target, entries)
-	s.writeFile(s.pathFor(target), entries)
+
+	// Build a new slice without mutating the original
+	newEntries := make([]string, 0, len(entries)-1)
+	newEntries = append(newEntries, entries[:idx]...)
+	newEntries = append(newEntries, entries[idx+1:]...)
+
+	// Write to disk first, then commit in-memory
+	if err := s.writeFile(s.pathFor(target), newEntries); err != nil {
+		return &memoryToolResult{Success: false, Error: fmt.Sprintf("Failed to write memory file: %v", err), Target: target}
+	}
+	s.setEntries(target, newEntries)
 
 	return s.successResult(target, "Entry removed.", &memoryActionInfo{Action: "remove", Target: target, OldText: oldText})
 }
@@ -435,21 +462,14 @@ func (s *MemoryStore) detectExternalDrift(target string) string {
 		return ""
 	}
 
-	parsed := s.readFile(path)
+	// Parse from the already-read data instead of re-reading the file
+	parsed := s.parseEntries(raw)
 	if len(parsed) == 0 {
 		return ""
 	}
 	roundtrip := strings.Join(parsed, entryDelimiter)
 
-	limit := s.charLimit(target)
-	maxLen := 0
-	for _, e := range parsed {
-		if len(e) > maxLen {
-			maxLen = len(e)
-		}
-	}
-
-	if strings.TrimSpace(raw) != strings.TrimSpace(roundtrip) || maxLen > limit {
+	if strings.TrimSpace(raw) != strings.TrimSpace(roundtrip) {
 		ts := time.Now().Unix()
 		bakPath := path + fmt.Sprintf(".bak.%d", ts)
 		os.WriteFile(bakPath, data, 0644)
@@ -478,8 +498,20 @@ func (s *MemoryStore) successResult(target, message string, actionInfo *memoryAc
 	}
 }
 
-func (s *MemoryStore) ReloadFromDisk() {
-	s.LoadFromDisk()
+// parseEntries splits raw file content into trimmed, non-empty entries.
+func (s *MemoryStore) parseEntries(raw string) []string {
+	if strings.TrimSpace(raw) == "" {
+		return nil
+	}
+	parts := strings.Split(raw, entryDelimiter)
+	var out []string
+	for _, p := range parts {
+		p = strings.TrimSpace(p)
+		if p != "" {
+			out = append(out, p)
+		}
+	}
+	return out
 }
 
 func dedupe(entries []string) []string {

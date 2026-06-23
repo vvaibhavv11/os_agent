@@ -155,17 +155,30 @@ function renderInline(text: string): string {
     );
 }
 
+function isTableSeparator(line: string): boolean {
+  return /^\|?[\s\-:|]+\|[\s\-:|]*$/.test(line.trim());
+}
+
+function parseTableRow(line: string): string[] {
+  let trimmed = line.trim();
+  if (trimmed.startsWith("|")) trimmed = trimmed.slice(1);
+  if (trimmed.endsWith("|")) trimmed = trimmed.slice(0, -1);
+  return trimmed.split("|").map((c) => c.trim());
+}
+
 function renderMarkdown(text: string): string {
   const lines = text.split("\n");
   const out: string[] = [];
   let inCode = false;
   let codeBuf: string[] = [];
   let codeLang = "";
+  let lastWasEmpty = false;
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
 
     if (line.startsWith("```")) {
+      lastWasEmpty = false;
       if (inCode) {
         const codeText = codeBuf.join("\n");
         const highlighted = highlightCode(codeText, codeLang);
@@ -193,9 +206,54 @@ function renderMarkdown(text: string): string {
       continue;
     }
 
+    // Empty line — collapse consecutive empties into one spacer
     if (line.trim() === "") {
-      out.push("<br/>");
+      if (!lastWasEmpty) {
+        out.push(`<div class="h-2"></div>`);
+      }
+      lastWasEmpty = true;
       continue;
+    }
+    lastWasEmpty = false;
+
+    // Table: detect a block of pipe-delimited lines
+    if (line.includes("|") && line.trim().startsWith("|")) {
+      const tableRows: string[][] = [];
+      let hasHeader = false;
+      let j = i;
+      // Collect all contiguous table lines
+      while (j < lines.length && lines[j].trim().startsWith("|")) {
+        if (isTableSeparator(lines[j])) {
+          hasHeader = true;
+          j++;
+          continue;
+        }
+        tableRows.push(parseTableRow(lines[j]));
+        j++;
+      }
+      if (tableRows.length > 0) {
+        let tableHtml = `<div class="my-3 overflow-x-auto rounded-lg border border-chat-border/40"><table class="md-table">`;
+        const startRow = hasHeader ? 1 : 0;
+        if (hasHeader && tableRows.length > 0) {
+          tableHtml += `<thead><tr>`;
+          for (const cell of tableRows[0]) {
+            tableHtml += `<th>${renderInline(cell)}</th>`;
+          }
+          tableHtml += `</tr></thead>`;
+        }
+        tableHtml += `<tbody>`;
+        for (let r = startRow; r < tableRows.length; r++) {
+          tableHtml += `<tr>`;
+          for (const cell of tableRows[r]) {
+            tableHtml += `<td>${renderInline(cell)}</td>`;
+          }
+          tableHtml += `</tr>`;
+        }
+        tableHtml += `</tbody></table></div>`;
+        out.push(tableHtml);
+        i = j - 1; // advance past the table block
+        continue;
+      }
     }
 
     if (line.startsWith("### ")) {
@@ -219,7 +277,7 @@ function renderMarkdown(text: string): string {
       continue;
     }
 
-    out.push(`<p class="my-1.5 text-chat-text/90 leading-relaxed">${renderInline(line)}</p>`);
+    out.push(`<p class="my-1 text-chat-text/90 leading-relaxed">${renderInline(line)}</p>`);
   }
 
   if (inCode) {

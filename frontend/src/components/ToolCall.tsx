@@ -18,56 +18,40 @@ export default function ToolCall({
   args,
   status,
   result,
-  isFirstInSequence,
-  isLastInSequence,
+  isFirstInSequence: _isFirst,
+  isLastInSequence: _isLast,
 }: ToolCallProps) {
   const [expanded, setExpanded] = useState(false);
 
-  let topClass = "rounded-xl";
-  let midClass = "rounded-xl";
-  let botClass = "rounded-xl";
-  let borderT = "";
-
-  if (isFirstInSequence && !isLastInSequence) {
-    topClass = "rounded-t-xl";
-    midClass = "rounded-t-xl";
-    botClass = "rounded-b-none";
-  } else if (!isFirstInSequence && isLastInSequence) {
-    topClass = "rounded-t-none";
-    midClass = "rounded-b-none";
-    botClass = "rounded-b-xl";
-    borderT = "border-t-0";
-  } else if (!isFirstInSequence && !isLastInSequence) {
-    topClass = "rounded-none";
-    midClass = "rounded-none";
-    botClass = "rounded-none";
-    borderT = "border-t-0";
-  }
+  const label = resolveToolCallLabel(name, args);
 
   return (
-    <div className={`mx-5 animate-fade-in`}>
+    <div className="animate-fade-in">
       <button
         onClick={() => setExpanded(!expanded)}
-        className={`flex items-center gap-2 w-full px-3 py-1.5 bg-chat-surface/50 border border-chat-border/50 hover:bg-chat-surface/70 transition-all duration-200 ${topClass} ${borderT}`}
+        className="flex items-center gap-1.5 leading-none group transition-all duration-150 w-full text-left"
       >
-        <div className="w-6 h-6 rounded-lg bg-[#83a598]/20 flex items-center justify-center shrink-0">
-          <svg className="w-3.5 h-3.5 text-[#83a598]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-            <path strokeLinecap="round" strokeLinejoin="round" d={resolveToolCallIcon(name)} />
-          </svg>
-        </div>
-        <span className="text-xs font-medium text-chat-text truncate">
-          {resolveToolCallLabel(name)}
+        {/* Icon */}
+        <svg
+          className="w-4 h-4 shrink-0 text-chat-text-muted/50"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={1.5}
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" d={resolveToolCallIcon(name)} />
+        </svg>
+
+        {/* Label */}
+        <span className="text-xs text-chat-text-muted/70 group-hover:text-chat-text-muted transition-colors duration-150">
+          {label}
         </span>
-        <div className="ml-auto flex items-center gap-1.5">
-          <div className={`transition-transform duration-200 ${expanded ? "rotate-90" : ""}`}>
-            <svg className="w-3 h-3 text-chat-text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-            </svg>
-          </div>
-        </div>
+
+
       </button>
+
       {expanded && (
-        <div className={`border-x border-b border-chat-border/50 overflow-hidden ${botClass}`}>
+        <div className="ml-6 mt-0.5 mb-1 rounded-lg overflow-hidden border border-chat-border/30 animate-fade-in">
           <ToolCallDetails name={name} args={args} result={result} error={status === "failed"} />
         </div>
       )}

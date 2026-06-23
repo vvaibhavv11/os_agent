@@ -89,3 +89,37 @@ body {
 .animate-pulse-subtle {
   animation: pulse-subtle 1.5s ease-in-out infinite;
 }
+
+/* Markdown table styles */
+.md-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+}
+
+.md-table th {
+  text-align: left;
+  padding: 0.5rem 0.75rem;
+  font-weight: 600;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: #a89984;
+  background: rgba(60, 56, 54, 0.6);
+  border-bottom: 1px solid rgba(80, 73, 69, 0.6);
+}
+
+.md-table td {
+  padding: 0.45rem 0.75rem;
+  color: #d5c4a1;
+  border-bottom: 1px solid rgba(80, 73, 69, 0.3);
+}
+
+.md-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.md-table tbody tr:hover {
+  background: rgba(60, 56, 54, 0.3);
+}

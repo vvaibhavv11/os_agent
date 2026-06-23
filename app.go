@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
@@ -18,7 +19,8 @@ type App struct {
 	cancelMu              sync.Mutex
 	memoryStore           *MemoryStore
 	memoryNudgeInterval   int
-	turnsSinceMemoryNudge int
+	turnsSinceMemoryNudge atomic.Int32
+	memoryReviewMu        sync.Mutex
 }
 
 func NewApp() *App {
@@ -248,7 +250,7 @@ func (a *App) SendMessage(text, conversationID string) {
 
 	// Increment memory nudge counter
 	if a.memoryStore != nil && a.memoryNudgeInterval > 0 {
-		a.turnsSinceMemoryNudge++
+		a.turnsSinceMemoryNudge.Add(1)
 	}
 
 	// Start streaming in a goroutine
@@ -270,7 +272,7 @@ func (a *App) SendMessage(text, conversationID string) {
 }
 
 func (a *App) resetMemoryNudge() {
-	a.turnsSinceMemoryNudge = 0
+	a.turnsSinceMemoryNudge.Store(0)
 }
 
 func (a *App) StopGeneration() {
